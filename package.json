@@ -1,0 +1,15 @@
+{
+  "name": "calculadora-amostragem",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
