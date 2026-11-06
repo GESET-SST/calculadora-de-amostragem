@@ -1,0 +1,15 @@
+{
+  "name": "Calculadora de Amostragem – SST",
+  "short_name": "Amostragem",
+  "description": "Tempo de coleta de agentes químicos (volume ÷ vazão) a partir do Guia de Amostragem.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f0e9",
+  "theme_color": "#2f6b3a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2f6b3a">
 <title>Calculadora de Amostragem – SST</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
 <style>
   /* Identidade herdada do Agro-Sync: alto contraste, campos grandes, zero enfeite. */
   :root { --tinta:#17211b; --papel:#f2f0e9; --cartao:#ffffff; --linha:#d3cfc2; --verde:#2f6b3a; --ambar:#b06a12; --apagado:#6c6d63; --erro:#b3261e; }
@@ -13,10 +16,11 @@
   header { margin-bottom:20px; }
   h1 { font-size:1.5rem; letter-spacing:-0.02em; font-weight:700; }
   .subtitulo { color:var(--apagado); font-size:.9rem; }
-  #status { display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:6px; font-size:.88rem; font-weight:600; margin:16px 0; }
+  #status { display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:6px; font-size:.88rem; font-weight:600; margin:16px 0 8px; }
   #status .bolinha { width:10px; height:10px; border-radius:50%; background:currentColor; flex-shrink:0; }
   .online { background:#e2efe4; color:var(--verde); }
   .offline { background:#f6e9d5; color:var(--ambar); }
+  #infoOffline { color:var(--apagado); font-size:.8rem; margin:0 0 16px 2px; }
   .cartao { background:var(--cartao); border:1px solid var(--linha); border-radius:8px; padding:20px; margin-bottom:20px; }
   h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--apagado); margin-bottom:12px; }
   h3 { font-size:1.15rem; letter-spacing:-0.01em; }
@@ -29,7 +33,6 @@
   button { width:100%; padding:15px; font-size:1rem; font-weight:700; font-family:inherit; border:none; border-radius:6px; cursor:pointer; background:var(--verde); color:#fff; margin-top:16px; }
   button:active { transform:translateY(1px); }
   button.sec { background:transparent; color:var(--tinta); border:1.5px solid var(--tinta); }
-  button.escuro { background:var(--tinta); }
   .dica { color:var(--apagado); font-size:.82rem; margin-top:12px; line-height:1.4; }
   .meta { color:var(--apagado); font-size:.88rem; margin:2px 0 4px; }
   .sub { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--apagado); margin:20px 0 10px; }
@@ -45,12 +48,43 @@
   .registro strong { display:block; }
   .registro span { color:var(--apagado); font-size:.82rem; }
   .registro.com-erro { border-left-color:var(--erro); background:#fdecea; }
+  .registro.inter { border-left-color:var(--ambar); }
   .registro .motivo { display:block; color:var(--erro); font-weight:700; font-size:.82rem; margin-top:4px; }
+  /* Amostrador: o código é a informação que o técnico leva para o campo */
+  .amostrador { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0 2px; font-size:.92rem; }
+  .selo { background:var(--tinta); color:#fff; font-weight:700; font-size:.82rem; padding:3px 10px; border-radius:99px; letter-spacing:.02em; }
+  .selo.vazio { background:#e7e3d6; color:var(--apagado); font-weight:600; }
+  /* Faixas do método: somente leitura (padrão do método, não muda por laboratório) */
+  .fixos { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .fixo { background:#ece9de; border:1px solid var(--linha); border-radius:6px; padding:10px 12px; min-width:0; }
+  .fixo span { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--apagado); }
+  .fixo b { font-size:1.02rem; overflow-wrap:anywhere; }
+  .cadeado { font-size:.78rem; color:var(--apagado); margin-top:6px; }
+  details.lab { margin-top:14px; font-size:.88rem; }
+  details.lab summary { cursor:pointer; font-weight:700; color:var(--apagado); text-transform:uppercase; font-size:.78rem; letter-spacing:.06em; }
+  details.lab p { margin-top:8px; white-space:pre-line; }
+
+  /* ---------- Ficha de campo (só aparece na impressão) ---------- */
+  #ficha { display:none; }
   @media print {
-    #status, .noprint, #lista, button { display:none !important; }
-    body { background:#fff; padding:0; }
-    .cartao { break-inside:avoid; border-color:#999; }
-    input { border:0; padding:0; background:#fff; }
+    @page { size:A4; margin:12mm; }
+    .container { display:none !important; }
+    body { background:#fff; padding:0; color:#000; }
+    #ficha { display:block; font-size:11px; line-height:1.35; font-family:system-ui,"Segoe UI",Arial,sans-serif; }
+    #ficha h1 { font-size:15px; margin-bottom:2px; }
+    #ficha .f-sub { color:#444; margin-bottom:8px; }
+    #ficha .f-cab { display:grid; grid-template-columns:auto 1fr 1fr; gap:14px; margin-bottom:10px; }
+    #ficha .f-cab div { border-bottom:1px solid #000; padding-bottom:2px; min-height:16px; }
+    #ficha table { width:100%; border-collapse:collapse; }
+    #ficha th, #ficha td { border:1px solid #555; padding:4px 6px; vertical-align:top; text-align:left; }
+    #ficha th { background:#e6e6e6; font-size:10px; text-transform:uppercase; letter-spacing:.04em; }
+    #ficha tr { break-inside:avoid; }
+    #ficha .cod { font-weight:700; }
+    #ficha .inter { font-weight:700; }
+    #ficha h2 { font-size:11px; margin:10px 0 3px; color:#000; }
+    #ficha .obs p { margin-bottom:3px; }
+    #ficha .rodape { margin-top:10px; font-size:9.5px; color:#444; border-top:1px solid #999; padding-top:4px; }
+    #ficha .livre { margin-top:3px; font-style:italic; }
   }
 </style>
 </head>
@@ -66,18 +100,19 @@
     <span class="bolinha"></span>
     <span id="status-texto">Nenhuma planilha carregada</span>
   </div>
+  <p id="infoOffline"></p>
 
   <!-- ---------- 1. PLANILHA ---------- -->
-  <div class="cartao noprint">
+  <div class="cartao">
     <h2>1 · Planilha do laboratório</h2>
-    <input type="file" id="arquivo" accept=".xlsx,.xls,.csv">
-    <p class="dica">O sistema acha o cabeçalho sozinho (Agente, Vazão, Volume…) e lê as faixas. Linhas que ele não entende ficam visíveis para revisão. Nada é guardado: ao fechar, esquece tudo.</p>
+    <input type="file" id="arquivo" accept=".xlsx,.xlsm,.xlsb,.xls,.csv">
+    <p class="dica">O sistema acha o cabeçalho sozinho (Agente, Vazão, Volume…) e lê as faixas. Linhas que ele não entende ficam visíveis para revisão. A planilha não sai do seu aparelho e não é guardada: ao fechar, esquece tudo.</p>
     <button class="sec" id="btnExemplo" type="button">Usar exemplo de teste</button>
     <div id="statusArquivo"></div>
   </div>
 
   <!-- ---------- 2. ESCOLHER ---------- -->
-  <div class="cartao noprint" id="secLista" hidden>
+  <div class="cartao" id="secLista" hidden>
     <h2>2 · Escolher os agentes</h2>
     <input type="search" id="busca" placeholder="Buscar por nome ou CAS…">
     <div id="lista"></div>
@@ -87,21 +122,22 @@
   <!-- ---------- 3. RESULTADOS ---------- -->
   <div id="cards"></div>
 
-  <button id="btnPdf" class="sec noprint" type="button">Imprimir / salvar PDF</button>
+  <div id="areaFicha" hidden>
+    <button id="btnPdf" type="button">Imprimir ficha de campo (1 página)</button>
+    <p class="dica">A ficha reúne todos os agentes escolhidos em uma folha só, com amostrador, tempos e observações. No celular, escolha “Salvar como PDF” na janela de impressão.</p>
+  </div>
 
 </div>
 
+<!-- Ficha de campo: montada na hora de imprimir -->
+<section id="ficha" aria-hidden="true"></section>
+
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="src/calculo.js"></script>
 <script src="src/faixas.js"></script>
+<script src="src/tipos.js"></script>
 <script>
-// ---------- Núcleo (funções puras) ----------
-// TODO Wendel: troque pelas suas versões (src/calculo.js) quando passarem nos testes.
-function tempoMinutos(volumeL, vazaoLpm) {
-  if (!Number.isFinite(volumeL) || !Number.isFinite(vazaoLpm) || vazaoLpm <= 0 || volumeL <= 0) throw new Error("Valores inválidos");
-  return volumeL / vazaoLpm;
-}
-const volumeDe = (q, t) => q * t;
-const vazaoDe = (v, t) => { if (!(t > 0)) throw new Error("Tempo inválido"); return v / t; };
+const { tempoMinutos, volumeLitros, vazaoLitrosPorMin, dentroDaFaixa, vazoesParaCalcular, tabelaTempos } = Calculo;
 
 // ---------- Apoio ----------
 const $ = id => document.getElementById(id);
@@ -120,6 +156,7 @@ function carregar(linhas, nome) {
   const r = Faixas.lerPlanilha(linhas);
   if (!r.ok) { $("statusArquivo").innerHTML = msg("erro", esc(r.erro)); $("secLista").hidden = true; status("offline", "Arquivo não reconhecido"); return; }
   agentes = r.agentes;
+  marcados.clear(); $("cards").innerHTML = ""; $("areaFicha").hidden = true;
   status("online", `Planilha carregada · ${agentes.length} agentes`);
   let html = msg("ok", `${esc(nome)}: ${agentes.length} agentes lidos.`);
   if (r.revisar.length) {
@@ -135,24 +172,33 @@ $("arquivo").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   try {
     const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
-    // usa a primeira aba que tiver o cabeçalho esperado
-    for (const nome of wb.SheetNames) {
-      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: "" });
-      if (Faixas.acharColunas(aoa)) return carregar(aoa, `${f.name} (aba ${nome})`);
-    }
-    $("statusArquivo").innerHTML = msg("erro", "Não achei, em nenhuma aba, o cabeçalho com Agente, Vazão e Volume. Esse é o Guia de Amostragem?");
+    const abas = {};
+    for (const nome of wb.SheetNames) abas[nome] = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: "" });
+    const t = Tipos.detectarTipo(abas);
+    if (t.tipo === "guia-amostragem") return carregar(abas[t.aba], `${f.name} (aba ${t.aba})`);
+
+    // Outro tipo de planilha: dizer o que foi visto, sem fingir que entendeu
+    $("secLista").hidden = true; $("cards").innerHTML = ""; $("areaFicha").hidden = true;
+    status("offline", "Planilha reconhecida, sem calculadora ainda");
+    const linhas = t.abas.map(a => `<div class="registro"><strong>${esc(a.nome)}</strong><span>${esc(a.titulo) || "sem título"}</span></div>`).join("");
+    const aviso = t.tipo === "gestao-informacao"
+      ? "Este arquivo não é uma tabela de agentes: é um conjunto de <b>calculadoras com fórmulas</b> (calor, ruído, químico). Cada aba precisa da sua própria calculadora. Elas entram na próxima fase. As macros do Excel não são executadas."
+      : "Não reconheci este tipo de planilha. Abaixo está o que encontrei nela.";
+    $("statusArquivo").innerHTML = msg("aviso", `<b>${esc(t.rotulo)}</b><br>${aviso}`) + `<h2 style="margin-top:20px">Abas encontradas (${t.abas.length})</h2>` + linhas;
   } catch (err) {
     $("statusArquivo").innerHTML = msg("erro", "Não consegui abrir esse arquivo. Se for PDF: ainda não é aceito, anexe a planilha (.xlsx).");
   }
 };
 $("btnExemplo").onclick = () => carregar([
-  ["Número","Código do amostrador","Agente Químico","CAS","Tipo de amostrador","Vazão","Volume"],
-  [1,"TC-01","2-Butoxietanol","111-76-2","Carvão ativado","0,01 - 0,05 L/min","2 L - 10 L"],
-  [2,"TC-02","Agente de teste A","000-00-0","Sílica","0,2 L/min","mínimo 480 L"],
-  [3,"TC-03","Agente de teste B","","Filtro","conforme método","Máx 10L"],
+  ["Número","Código do amostrador","Agente Químico","CAS","Tipo de amostrador","Vazão","Volume","Observações"],
+  [1,"TC-01","2-Butoxietanol","111-76-2","Carvão ativado","0,01 - 0,05 L/min","2 L - 10 L","Exemplo: proteger da luz."],
+  [2,"TC-02","Agente de teste A","000-00-0","Sílica","0,2 L/min","mínimo 480 L",""],
+  [3,"TC-03","Agente de teste B","","Filtro","conforme método","Máx 10L","Faixa não reconhecida de propósito (teste do preenchimento manual)."],
+  [4,"TC-04","Agente de teste C (ciclone)","","Ciclone","Ciclone de Nylon 1,7 L/min Ciclone de Alumínio 2,5 L/min","mínimo 240 L",""],
 ], "exemplo de teste");
 
 // ---------- 2. Lista ----------
+const marcados = new Set();
 function desenharLista() {
   const q = Faixas.semAcento($("busca").value);
   $("lista").innerHTML = agentes.map((a, i) => ({ a, i }))
@@ -160,87 +206,209 @@ function desenharLista() {
     .map(({ a, i }) => `<label><input type="checkbox" value="${i}" ${marcados.has(i) ? "checked" : ""}> ${esc(a.agente)} <small>${esc(a.cas)}</small></label>`).join("")
     || '<div class="dica" style="padding:10px">Nenhum agente encontrado.</div>';
 }
-const marcados = new Set();
 $("busca").oninput = desenharLista;
 $("lista").onchange = e => { const i = Number(e.target.value); e.target.checked ? marcados.add(i) : marcados.delete(i); };
 
 // ---------- 3. Cards ----------
+// As faixas do método são SOMENTE LEITURA. Só ficam editáveis quando o sistema não conseguiu ler
+// a faixa com segurança (aí o técnico preenche olhando o Guia e o aviso vermelho fica visível).
+const faixasConfiaveis = a => a.problemas.length === 0 && a.vazao.ok && a.volume.ok &&
+  a.vazao.min != null && a.vazao.max != null && (a.volume.min != null || a.volume.max != null);
+
+function txtFaixa(f, un) {
+  if (f.opcoes && f.opcoes.length) return f.opcoes.map(fmt).join(" ou ") + " " + un;
+  const a = f.min, b = f.max;
+  if (a != null && b != null) return (a === b ? fmt(a) : fmt(a) + " – " + fmt(b)) + " " + un;
+  if (a != null) return "mín. " + fmt(a) + " " + un;
+  if (b != null) return "máx. " + fmt(b) + " " + un;
+  return "—";
+}
+
 $("btnMontar").onclick = () => {
-  if (!marcados.size) { $("cards").innerHTML = msg("aviso", "Marque ao menos um agente."); return; }
+  if (!marcados.size) { $("cards").innerHTML = msg("aviso", "Marque ao menos um agente."); $("areaFicha").hidden = true; return; }
   $("cards").innerHTML = [...marcados].sort((a, b) => a - b).map(i => card(agentes[i], i)).join("");
   document.querySelectorAll(".card").forEach(atualizarTabela);
+  $("areaFicha").hidden = false;
 };
+
+// Colunas finais do Guia (as amarelas): transporte, armazenamento, estabilidade e observação.
+// O Guia usa "-" para "sem informação": isso é ignorado.
+const textoUtil = t => { const x = String(t ?? "").replace(/\s+/g, " ").trim(); return /^[-–—.\s]*$/.test(x) ? "" : x; };
+function infoLab(a) {
+  return [["Transporte", a.transporte], ["Armazenamento", a.armazenamento], ["Estabilidade", a.estabilidade], ["Observação", a.observacao]]
+    .map(([rotulo, t]) => ({ rotulo, texto: textoUtil(t) })).filter(x => x.texto);
+}
+
 function card(a, i) {
-  const aviso = a.problemas.length ? msg("aviso", "⚠ Confira as faixas abaixo: " + esc(a.problemas.join("; "))) : "";
-  return `<div class="cartao card" data-i="${i}">
+  const manual = !faixasConfiaveis(a);
+  const aviso = (a.problemas.length ? msg("erro", "⚠ Faixa não reconhecida com segurança. Preencha à mão conforme o Guia: " + esc(a.problemas.join("; "))) : "") +
+    (a.notas && a.notas.length ? msg("aviso", "⚠ " + esc(a.notas.join(" · "))) : "");
+
+  const bloco = manual
+    ? `<div class="sub" style="margin-top:14px">Faixas do método (preencher à mão)</div>
+       <div class="grid">
+         <div><label>Volume mín. (L)</label><input class="vmin" value="${campo(a.volume.min)}"></div>
+         <div><label>Volume máx. (L)</label><input class="vmax" value="${campo(a.volume.max)}"></div>
+         <div><label>Vazão mín. (L/min)</label><input class="qmin" value="${campo(a.vazao.min)}"></div>
+         <div><label>Vazão máx. (L/min)</label><input class="qmax" value="${campo(a.vazao.max)}"></div>
+       </div>`
+    : `<div class="sub" style="margin-top:14px">Faixas do método</div>
+       <div class="fixos">
+         <div class="fixo"><span>Volume</span><b>${esc(txtFaixa(a.volume, "L"))}</b></div>
+         <div class="fixo"><span>Vazão</span><b>${esc(txtFaixa(a.vazao, "L/min"))}</b></div>
+       </div>
+       <p class="cadeado">🔒 Valores do método, iguais em qualquer laboratório. Não são editáveis.</p>`;
+
+  const podeIntermediaria = manual || (!(a.vazao.opcoes && a.vazao.opcoes.length) && a.vazao.min != null && a.vazao.max != null && a.vazao.min < a.vazao.max);
+  const intermediaria = podeIntermediaria
+    ? `<div class="sub">Vazão intermediária (opcional)</div>
+       <label for="qx${i}" style="display:none">Vazão intermediária</label>
+       <input class="qextra" id="qx${i}" inputmode="decimal" placeholder="${manual ? "ex.: 0,03" : "entre " + fmt(a.vazao.min) + " e " + fmt(a.vazao.max) + " L/min"}">`
+    : (a.vazao.opcoes && a.vazao.opcoes.length ? `<p class="dica">Este método usa vazões alternativas (não há faixa contínua), então não há vazão intermediária.</p>` : "");
+
+  const extras = infoLab(a).map(x => [x.rotulo, x.texto]);
+  const lab = extras.length
+    ? `<details class="lab"><summary>Informações do laboratório</summary>${extras.map(([k, v]) => `<p><b>${esc(k)}:</b> ${esc(v)}</p>`).join("")}</details>` : "";
+
+  return `<div class="cartao card" data-i="${i}" data-manual="${manual ? 1 : 0}">
     <h3>${esc(a.agente)}</h3>
-    <div class="meta">CAS ${esc(a.cas) || "—"} · ${esc(a.amostrador) || "amostrador não informado"} ${a.codigo ? "(" + esc(a.codigo) + ")" : ""}</div>
+    <div class="meta">CAS ${esc(a.cas) || "—"}</div>
+    <div class="amostrador"><span>Amostrador: <b>${esc(a.amostrador) || "não informado"}</b></span>
+      <span class="selo ${a.codigo ? "" : "vazio"}">Código ${esc(a.codigo) || "não informado"}</span></div>
     ${aviso}
-    <div class="sub" style="margin-top:14px">Faixas do laboratório (editáveis)</div>
-    <div class="grid">
-      <div><label>Volume mín. (L)</label><input class="vmin" value="${campo(a.volume.min)}"></div>
-      <div><label>Volume máx. (L)</label><input class="vmax" value="${campo(a.volume.max)}"></div>
-      <div><label>Vazão mín. (L/min)</label><input class="qmin" value="${campo(a.vazao.min)}"></div>
-      <div><label>Vazão máx. (L/min)</label><input class="qmax" value="${campo(a.vazao.max)}"></div>
-      <div class="noprint" style="grid-column:1 / -1"><label>Vazão intermediária (opcional)</label><input class="qextra" placeholder="ex.: 0,03"></div>
-    </div>
+    ${bloco}
+    ${intermediaria}
     <div class="tabela"></div>
-    <div class="sub noprint">Calculadora livre: preencha 2 campos, calculo o 3º</div>
-    <div class="grid noprint" style="grid-template-columns:1fr 1fr 1fr">
-      <div><label>Volume (L)</label><input class="cv"></div>
-      <div><label>Vazão (L/min)</label><input class="cq"></div>
-      <div><label>Tempo (min)</label><input class="ct"></div>
+    ${lab}
+    <div class="sub">Calculadora livre: preencha 2 campos, calculo o 3º</div>
+    <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div><label>Volume (L)</label><input class="cv" inputmode="decimal"></div>
+      <div><label>Vazão (L/min)</label><input class="cq" inputmode="decimal"></div>
+      <div><label>Tempo (min)</label><input class="ct" inputmode="decimal"></div>
     </div>
-    <div class="noprint"><button class="btnLivre" type="button">Calcular o que falta</button><button class="sec btnLimpar" type="button">Limpar</button></div>
+    <div><button class="btnLivre" type="button">Calcular o que falta</button><button class="sec btnLimpar" type="button">Limpar</button></div>
     <div class="resLivre"></div>
   </div>`;
 }
-const val = (c, s) => num(c.querySelector(s).value);
+
+// Lê o estado de um card (do agente, ou dos campos quando está em modo manual)
+function estado(c) {
+  const a = agentes[Number(c.dataset.i)];
+  const manual = c.dataset.manual === "1";
+  const lerCampo = s => { const el = c.querySelector(s); return el ? num(el.value) : NaN; };
+  const volume = manual ? { min: lerCampo(".vmin"), max: lerCampo(".vmax") } : { min: a.volume.min, max: a.volume.max };
+  const vazao = manual ? { min: lerCampo(".qmin"), max: lerCampo(".qmax"), opcoes: null } : { min: a.vazao.min, max: a.vazao.max, opcoes: a.vazao.opcoes };
+  const brutoQx = c.querySelector(".qextra") ? c.querySelector(".qextra").value.trim() : "";
+  const qx = lerCampo(".qextra");
+  return { a, manual, volume, vazao, qx, qxDigitado: brutoQx !== "" };
+}
+
 function atualizarTabela(c) {
-  const vmin = val(c, ".vmin"), vmax = val(c, ".vmax"), qmin = val(c, ".qmin"), qmax = val(c, ".qmax"), qx = val(c, ".qextra");
-  const vazoes = [];
-  if (Number.isFinite(qmin)) vazoes.push(qmin);
-  if (Number.isFinite(qx)) vazoes.push(qx);
-  if (Number.isFinite(qmax)) vazoes.push(qmax);
+  const s = estado(c);
   const dest = c.querySelector(".tabela");
-  if (!vazoes.length || !(Number.isFinite(vmin) || Number.isFinite(vmax))) {
+  const vmin = Number.isFinite(s.volume.min) ? s.volume.min : null, vmax = Number.isFinite(s.volume.max) ? s.volume.max : null;
+  const vz = { min: Number.isFinite(s.vazao.min) ? s.vazao.min : null, max: Number.isFinite(s.vazao.max) ? s.vazao.max : null, opcoes: s.vazao.opcoes };
+  if (vz.min == null && vz.max == null || (vmin == null && vmax == null)) {
     dest.innerHTML = msg("erro", "Faltam dados para calcular. Preencha as faixas acima."); return;
   }
-  const cel = (v, q) => { if (!Number.isFinite(v) || !(q > 0) || !(v > 0)) return "—"; const t = tempoMinutos(v, q); return `${fmt(t)} min (${hm(t)})`; };
-  let extraAviso = "";
-  if (Number.isFinite(qx) && (qx < qmin || qx > qmax)) extraAviso = msg("aviso", "⚠ A vazão intermediária está fora da faixa do laboratório.");
-  dest.innerHTML = extraAviso + '<div class="sub">Tempo de coleta por vazão</div>' +
-    vazoes.map(q => `<div class="registro"><strong>Vazão ${fmt(q)} L/min</strong>
-      <span>Mínimo (${campo(vmin) || "—"} L): </span><b>${cel(vmin, q)}</b><br>
-      <span>Máximo (${campo(vmax) || "—"} L): </span><b>${cel(vmax, q)}</b></div>`).join("");
+  const { lista, erro } = vazoesParaCalcular(vz, s.qxDigitado ? s.qx : NaN);
+  let aviso = "";
+  if (s.qxDigitado && !Number.isFinite(s.qx)) aviso = msg("erro", "A vazão intermediária não é um número válido.");
+  else if (erro === "fora da faixa do método") aviso = msg("erro", `⚠ ${fmt(s.qx)} L/min está fora da faixa do método (${fmt(vz.min)} – ${fmt(vz.max)} L/min). Ela não entra no cálculo.`);
+  else if (erro) aviso = msg("erro", erro);
+
+  const linhas = tabelaTempos(vmin, vmax, lista);
+  const cel = (v, t) => t == null ? "—" : `${fmt(t)} min (${hm(t)})`;
+  dest.innerHTML = aviso + '<div class="sub">Tempo de coleta por vazão</div>' + linhas.map(l =>
+    `<div class="registro ${l.intermediaria ? "inter" : ""}"><strong>Vazão ${fmt(l.vazao)} L/min${l.intermediaria ? " · intermediária" : ""}</strong>
+      <span>Volume mínimo (${campo(vmin) || "—"} L): </span><b>${cel(vmin, l.tmin)}</b><br>
+      <span>Volume máximo (${campo(vmax) || "—"} L): </span><b>${cel(vmax, l.tmax)}</b></div>`).join("");
 }
+
 $("cards").addEventListener("input", e => {
   const c = e.target.closest(".card");
   if (c && /vmin|vmax|qmin|qmax|qextra/.test(e.target.className)) atualizarTabela(c);
 });
+
 $("cards").addEventListener("click", e => {
   const c = e.target.closest(".card"); if (!c) return;
   const res = c.querySelector(".resLivre");
-  if (e.target.classList.contains("btnLimpar")) { ["cv","cq","ct"].forEach(k => c.querySelector("." + k).value = ""); res.innerHTML = ""; }
+  if (e.target.classList.contains("btnLimpar")) { ["cv","cq","ct"].forEach(k => c.querySelector("." + k).value = ""); res.innerHTML = ""; return; }
   if (!e.target.classList.contains("btnLivre")) return;
-  const v = val(c, ".cv"), q = val(c, ".cq"), t = val(c, ".ct");
+  const v = num(c.querySelector(".cv").value), q = num(c.querySelector(".cq").value), t = num(c.querySelector(".ct").value);
   if ([v, q, t].filter(x => !Number.isFinite(x)).length !== 1) { res.innerHTML = msg("erro", "Preencha exatamente 2 campos e deixe 1 vazio."); return; }
   let vv = v, qq = q, tt = t;
   try {
     if (!Number.isFinite(t)) tt = tempoMinutos(v, q);
-    else if (!Number.isFinite(v)) vv = volumeDe(q, t);
-    else qq = vazaoDe(v, t);
+    else if (!Number.isFinite(v)) vv = volumeLitros(q, t);
+    else qq = vazaoLitrosPorMin(v, t);
   } catch { res.innerHTML = msg("erro", "Valores inválidos (use números maiores que zero)."); return; }
   c.querySelector(".cv").value = fmt(vv); c.querySelector(".cq").value = fmt(qq); c.querySelector(".ct").value = fmt(tt);
-  const vmin = val(c, ".vmin"), vmax = val(c, ".vmax"), qmin = val(c, ".qmin"), qmax = val(c, ".qmax");
+
+  const s = estado(c);
   const av = [];
-  if (vv < vmin || vv > vmax) av.push(`Volume ${fmt(vv)} L fora da faixa (${campo(vmin) || "—"}–${campo(vmax) || "—"} L).`);
-  if (qq < qmin || qq > qmax) av.push(`Vazão ${fmt(qq)} L/min fora da faixa (${campo(qmin) || "—"}–${campo(qmax) || "—"} L/min).`);
+  if (!dentroDaFaixa(vv, s.volume.min, s.volume.max)) av.push(`Volume ${fmt(vv)} L fora da faixa (${campo(s.volume.min) || "—"}–${campo(s.volume.max) || "—"} L).`);
+  if (s.vazao.opcoes && s.vazao.opcoes.length) {
+    if (!s.vazao.opcoes.some(o => Math.abs(o - qq) < 1e-9)) av.push(`Vazão ${fmt(qq)} L/min não é uma das vazões do método (${s.vazao.opcoes.map(fmt).join(" ou ")}).`);
+  } else if (!dentroDaFaixa(qq, s.vazao.min, s.vazao.max)) av.push(`Vazão ${fmt(qq)} L/min fora da faixa (${campo(s.vazao.min) || "—"}–${campo(s.vazao.max) || "—"} L/min).`);
   const base = `Volume ${fmt(vv)} L · Vazão ${fmt(qq)} L/min · Tempo ${fmt(tt)} min (${hm(tt)})`;
-  res.innerHTML = av.length ? msg("aviso", base + "<br>⚠ " + av.join("<br>⚠ ")) : msg("ok", base + "<br>Dentro das faixas do laboratório.");
+  res.innerHTML = av.length ? msg("aviso", base + "<br>⚠ " + av.join("<br>⚠ ")) : msg("ok", base + "<br>Dentro das faixas do método.");
 });
 
-$("btnPdf").onclick = () => window.print();
+// ---------- 4. Ficha de campo (1 página, todos os agentes) ----------
+function montarFicha() {
+  const cards = [...document.querySelectorAll(".card")];
+  if (!cards.length) { $("ficha").innerHTML = ""; return false; }
+  const linhas = [], obs = [], grupos = new Map();
+  for (const c of cards) {
+    const s = estado(c);
+    const vmin = Number.isFinite(s.volume.min) ? s.volume.min : null, vmax = Number.isFinite(s.volume.max) ? s.volume.max : null;
+    const vz = { min: Number.isFinite(s.vazao.min) ? s.vazao.min : null, max: Number.isFinite(s.vazao.max) ? s.vazao.max : null, opcoes: s.vazao.opcoes };
+    const { lista } = vazoesParaCalcular(vz, s.qxDigitado ? s.qx : NaN);   // intermediária inválida fica de fora
+    const tempos = tabelaTempos(vmin, vmax, lista).map(l => {
+      let t = "—";                                   // só o limite que existe no método, sem inventar o outro
+      if (l.tmin != null && l.tmax != null) t = fmt(l.tmin) === fmt(l.tmax) ? fmt(l.tmin) : fmt(l.tmin) + " a " + fmt(l.tmax);
+      else if (l.tmin != null) t = "mín. " + fmt(l.tmin);
+      else if (l.tmax != null) t = "máx. " + fmt(l.tmax);
+      return `<div class="${l.intermediaria ? "inter" : ""}">${fmt(l.vazao)} L/min${l.intermediaria ? " (interm.)" : ""}: ${t} min</div>`;
+    }).join("") || "";
+    const vcv = num(c.querySelector(".cv").value), vcq = num(c.querySelector(".cq").value), vct = num(c.querySelector(".ct").value);
+    const livre = [vcv, vcq, vct].every(Number.isFinite)
+      ? `<div class="livre">Cálculo livre: ${fmt(vcv)} L · ${fmt(vcq)} L/min · ${fmt(vct)} min</div>` : "";
+    linhas.push(`<tr>
+      <td><b>${esc(s.a.agente)}</b><br>CAS ${esc(s.a.cas) || "—"}</td>
+      <td>${esc(s.a.amostrador) || "—"}<br><span class="cod">Cód. ${esc(s.a.codigo) || "—"}</span></td>
+      <td>Vol.: ${esc(txtFaixa({ min: vmin, max: vmax, opcoes: null }, "L"))}<br>Vazão: ${esc(txtFaixa(vz, "L/min"))}</td>
+      <td>${tabelaTempos(vmin, vmax, lista).some(l => l.tmin != null || l.tmax != null) ? tempos : "Não calculado"}${livre}</td></tr>`);
+    const info = infoLab(s.a).map(x => Faixas.semAcento(x.texto).startsWith(Faixas.semAcento(x.rotulo)) ? x.texto : `${x.rotulo}: ${x.texto}`).join(" · ");   // evita "Transporte: Transporte sob…"
+    if (info) grupos.set(info, [...(grupos.get(info) || []), s.a.agente]);   // agentes com o mesmo texto entram juntos
+    if (s.a.problemas.length) {
+      const calculou = tabelaTempos(vmin, vmax, lista).some(l => l.tmin != null || l.tmax != null);
+      obs.push(`<p><b>${esc(s.a.agente)}:</b> ${calculou ? "faixa preenchida à mão (não reconhecida no Guia). Conferir." : "faixa não reconhecida no Guia, tempo NÃO calculado. Consultar o Guia."}</p>`);
+    }
+  }
+  obs.unshift(...[...grupos].map(([texto, nomes]) => `<p><b>${esc(nomes.join("; "))}:</b> ${esc(texto)}</p>`));
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  $("ficha").innerHTML = `
+    <h1>Ficha de campo · Amostragem de agentes químicos</h1>
+    <div class="f-sub">Memória de cálculo: tempo (min) = volume (L) ÷ vazão (L/min)</div>
+    <div class="f-cab"><div>Data: ${hoje}</div><div>Empresa / setor:</div><div>Técnico:</div></div>
+    <table>
+      <thead><tr><th>Agente</th><th>Amostrador</th><th>Faixa do método</th><th>Tempo de coleta</th></tr></thead>
+      <tbody>${linhas.join("")}</tbody>
+    </table>
+    ${obs.length ? `<h2>Transporte, armazenamento, estabilidade e observações (laboratório)</h2><div class="obs">${obs.join("")}</div>` : ""}
+    <div class="rodape">Valores do Guia de Amostragem do laboratório. Conferir sempre com a versão vigente. Gerado em ${hoje}.</div>`;
+  return true;
+}
+$("btnPdf").onclick = () => { if (montarFicha()) window.print(); };
+window.addEventListener("beforeprint", montarFicha);   // também cobre Ctrl+P
+
+// ---------- 5. Offline (instala os arquivos no aparelho; a planilha nunca é guardada) ----------
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.ready.then(() => { $("infoOffline").textContent = "✓ Pronto para uso sem internet neste aparelho."; });
+}
 </script>
 </body>
 </html>

@@ -38,6 +38,49 @@ test("texto sem número não é aceito", () => {
   assert.equal(lerFaixa("").ok, false);
 });
 
+
+// ---- Casos reais do Guia de Amostragem que o leitor lia ERRADO em silêncio (agora não adivinha) ----
+test("'Mín. 480 L' e 'Mín 480 L' são só mínimo", () => {
+  for (const t of ["Mín. 480 L", "Mín 480 L", "Mínimo 480 L"]) {
+    const r = lerFaixa(t);
+    assert.deepEqual([r.min, r.max, r.ok], [480, null, true], t);
+  }
+});
+test("duas vazões por tipo de ciclone = opções, não faixa", () => {
+  const r = lerFaixa("Ciclone de Nylon 1,7 L/min Ciclone de Aluminio 2,5 L/min");
+  assert.deepEqual(r.opcoes, [1.7, 2.5]);
+  assert.ok(r.nota.includes("não é faixa"));
+});
+test("condição de umidade NÃO vira faixa 3–50", () => {
+  const r = lerFaixa("3 L (se umidade ≥ 50%). 5 L (se umidade < 50%)");
+  assert.equal(r.ok, false);
+  assert.equal(r.condicional, true);
+});
+test("STEL/TWA exige conferência manual", () => {
+  assert.equal(lerFaixa("22,5 L (para STEL). 90 L (para TWA)").condicional, true);
+  assert.equal(lerFaixa("1,5 L/min (para STEL). 0,25 - 0,50 L/min (para TWA)").condicional, true);
+});
+test("número de procedimento NÃO vira volume (mínimo 480 L e PR-BLIII-185)", () => {
+  const r = lerFaixa("mínimo 480 L e PR-BLIII-185");
+  assert.equal(r.condicional, true);
+  assert.equal(r.max, null);
+});
+test("'≤ 0,05 L' (sem /min) vai para conferência", () => {
+  assert.equal(lerFaixa("≤ 0,05 L").condicional, true);
+});
+test("uma vazão com texto descritivo é lida, mas com nota para conferir", () => {
+  const r = lerFaixa("1,6 L/min Amostragem com Ciclone Torácico");
+  assert.deepEqual([r.min, r.max, r.ok], [1.6, 1.6, true]);
+  assert.ok(r.nota);
+});
+test("espaços e quebras de linha no nome do agente são limpos", () => {
+  const r = lerPlanilha([
+    ["Agente Químico", "Vazão", "Volume"],
+    ["1,6-Hexametileno   Diisocianato (HDI)      \n", "1 L/min", "15 L"],
+  ]);
+  assert.equal(r.agentes[0].agente, "1,6-Hexametileno Diisocianato (HDI)");
+});
+
 // Planilha sintética no formato visto no vídeo (colunas do Guia de Amostragem)
 const cab = ["Número", "Código do amostrador", "Agente Químico", "CAS", "Tipo de amostrador", "Vazão", "Volume",
   "Metodologia orientativa", "Procedimento interno", "Condições de transporte/armazenamento", "Estabilidade", "Observação"];
@@ -75,4 +118,26 @@ test("ida e volta por um .xlsx de verdade", () => {
   const lido = XLSX.read(buf, { type: "buffer" });
   const aoa = XLSX.utils.sheet_to_json(lido.Sheets["Guia"], { header: 1, defval: "" });
   assert.equal(lerPlanilha(aoa).agentes.length, 3);
+});
+
+test("colunas finais do Guia: transporte, armazenamento, estabilidade e observação são lidas separadas", () => {
+  const r = Faixas.lerPlanilha([
+    ["Código do amostrador", "Agente Químico", "CAS", "Tipo de amostrador", "Vazão", "Volume", "Condições de Transporte", "Condições de armazenamento", "Estabilidade da amostra", "Observação"],
+    ["MDI", "Agente de teste", "000-00-0", "Cassete", "1 L/min", "15 L", "Sob gelo", "Manter no freezer", "18 dias", "-"],
+  ]);
+  const a = r.agentes[0];
+  assert.equal(a.transporte, "Sob gelo");
+  assert.equal(a.armazenamento, "Manter no freezer");
+  assert.equal(a.estabilidade, "18 dias");
+  assert.equal(a.observacao, "-");   // o Guia usa "-" para "sem observação": a tela é quem ignora
+  assert.equal(a.codigo, "MDI");
+});
+
+test("coluna única 'transporte/armazenamento' não duplica o texto", () => {
+  const r = Faixas.lerPlanilha([
+    ["Agente", "Vazão", "Volume", "Transporte e armazenamento"],
+    ["Agente de teste", "1 L/min", "15 L", "Refrigerar"],
+  ]);
+  assert.equal(r.agentes[0].transporte, "Refrigerar");
+  assert.equal(r.agentes[0].armazenamento, "");
 });
