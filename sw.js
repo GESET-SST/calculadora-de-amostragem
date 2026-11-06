@@ -2,10 +2,10 @@
 // Guarda só os ARQUIVOS DO APP. A planilha do técnico nunca passa por aqui.
 // Estratégia: rede primeiro (pega versão nova quando online), cache como reserva (offline).
 // Ao publicar uma versão nova, troque o número abaixo para limpar o cache antigo.
-const VERSAO = "amostragem-v4";
+const VERSAO = "amostragem-v5";
 const ARQUIVOS = [
   "./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png",
-  "src/calculo.js", "src/faixas.js", "src/tipos.js", "vendor/xlsx.full.min.js",
+  "src/calculo.js", "src/faixas.js", "src/tipos.js", "src/calor.js", "src/calor-tabelas.js", "vendor/xlsx.full.min.js",
 ];
 
 self.addEventListener("install", e => {

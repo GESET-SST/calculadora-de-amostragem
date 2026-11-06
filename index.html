@@ -63,6 +63,16 @@
   details.lab { margin-top:14px; font-size:.88rem; }
   details.lab summary { cursor:pointer; font-weight:700; color:var(--apagado); text-transform:uppercase; font-size:.78rem; letter-spacing:.06em; }
   details.lab p { margin-top:8px; white-space:pre-line; }
+  /* ---------- Calor ---------- */
+  select { width:100%; padding:13px 10px; font-size:.95rem; border:1.5px solid var(--linha); border-radius:6px; background:var(--papel); color:var(--tinta); font-family:inherit; }
+  .grade2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px; }
+  .sit { border:1px solid var(--linha); border-radius:8px; padding:4px 14px 14px; margin-top:14px; background:var(--papel); }
+  .sit label { margin-top:10px; }
+  #calor.sem-sol .tbs { display:none; }
+  .res-tab { width:100%; border-collapse:collapse; font-size:.85rem; margin:10px 0; }
+  .res-tab th, .res-tab td { border:1px solid var(--linha); padding:6px 8px; text-align:left; }
+  .res-tab th { background:#ece9de; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; }
+  .chaves { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
 
   /* ---------- Ficha de campo (só aparece na impressão) ---------- */
   #ficha { display:none; }
@@ -122,6 +132,22 @@
   <!-- ---------- 3. RESULTADOS ---------- -->
   <div id="cards"></div>
 
+  <!-- ---------- CALOR (planilha de gestão da informação) ---------- -->
+  <div class="cartao" id="calor" hidden>
+    <h2>Calor · NHO 06</h2>
+    <p class="meta" id="calorOrigem"></p>
+    <div id="calorAvisos"></div>
+    <div class="grade2">
+      <div><label for="cSolar">Exposição a carga solar?</label>
+        <select id="cSolar"><option value="nao">Não</option><option value="sim">Sim</option></select></div>
+      <div><label for="cVest">Vestimenta (ajuste do IBUTG)</label><select id="cVest"></select></div>
+    </div>
+    <div id="sits"></div>
+    <button class="sec" id="btnSit" type="button">+ Adicionar situação térmica</button>
+    <button id="btnCalor" type="button">Calcular calor</button>
+    <div id="calorRes"></div>
+  </div>
+
   <div id="areaFicha" hidden>
     <button id="btnPdf" type="button">Imprimir ficha de campo (1 página)</button>
     <p class="dica">A ficha reúne todos os agentes escolhidos em uma folha só, com amostrador, tempos e observações. No celular, escolha “Salvar como PDF” na janela de impressão.</p>
@@ -136,6 +162,8 @@
 <script src="src/calculo.js"></script>
 <script src="src/faixas.js"></script>
 <script src="src/tipos.js"></script>
+<script src="src/calor.js"></script>
+<script src="src/calor-tabelas.js"></script>
 <script>
 const { tempoMinutos, volumeLitros, vazaoLitrosPorMin, dentroDaFaixa, vazoesParaCalcular, tabelaTempos } = Calculo;
 
@@ -156,7 +184,7 @@ function carregar(linhas, nome) {
   const r = Faixas.lerPlanilha(linhas);
   if (!r.ok) { $("statusArquivo").innerHTML = msg("erro", esc(r.erro)); $("secLista").hidden = true; status("offline", "Arquivo não reconhecido"); return; }
   agentes = r.agentes;
-  marcados.clear(); $("cards").innerHTML = ""; $("areaFicha").hidden = true;
+  marcados.clear(); $("cards").innerHTML = ""; $("areaFicha").hidden = true; $("calor").hidden = true;
   status("online", `Planilha carregada · ${agentes.length} agentes`);
   let html = msg("ok", `${esc(nome)}: ${agentes.length} agentes lidos.`);
   if (r.revisar.length) {
@@ -176,9 +204,10 @@ $("arquivo").onchange = async e => {
     for (const nome of wb.SheetNames) abas[nome] = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: "" });
     const t = Tipos.detectarTipo(abas);
     if (t.tipo === "guia-amostragem") return carregar(abas[t.aba], `${f.name} (aba ${t.aba})`);
+    if (t.tipo === "gestao-informacao" && carregarCalor(wb, abas, t, f.name)) return;
 
     // Outro tipo de planilha: dizer o que foi visto, sem fingir que entendeu
-    $("secLista").hidden = true; $("cards").innerHTML = ""; $("areaFicha").hidden = true;
+    $("secLista").hidden = true; $("cards").innerHTML = ""; $("areaFicha").hidden = true; $("calor").hidden = true;
     status("offline", "Planilha reconhecida, sem calculadora ainda");
     const linhas = t.abas.map(a => `<div class="registro"><strong>${esc(a.nome)}</strong><span>${esc(a.titulo) || "sem título"}</span></div>`).join("");
     const aviso = t.tipo === "gestao-informacao"
@@ -355,8 +384,131 @@ $("cards").addEventListener("click", e => {
   res.innerHTML = av.length ? msg("aviso", base + "<br>⚠ " + av.join("<br>⚠ ")) : msg("ok", base + "<br>Dentro das faixas do método.");
 });
 
+// ---------- Calor (NHO 06): lê os quadros da planilha, as fórmulas ficam em src/calor.js ----------
+let quadrosCalor = null;
+const MAX_SIT = 4;                       // a planilha tem 4 situações térmicas por avaliação
+const f1 = n => Number.isFinite(n) ? n.toFixed(1).replace(".", ",") : "—";
+const f2 = n => Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "—";
+
+function carregarCalor(wb, abas, t, nomeArq) {
+  const nCalor = wb.SheetNames.find(n => /^\s*calor\s*$/i.test(n));
+  const nTab = wb.SheetNames.find(n => /calor/i.test(n) && /tabela/i.test(n));
+  if (!nCalor || !nTab) return false;                     // sem as duas abas: cai no aviso genérico
+  $("secLista").hidden = true; $("cards").innerHTML = ""; $("areaFicha").hidden = true; $("calor").hidden = true;
+  const q = CalorTabelas.lerTabelas(abas[nTab]);
+  if (!q.ok) {
+    status("offline", "Tabelas do calor não reconhecidas");
+    $("statusArquivo").innerHTML = msg("erro", "Não consegui ler os quadros do calor desta planilha, então <b>não calculei nada</b>:<br>" + q.problemas.map(esc).join("<br>"));
+    return true;
+  }
+  quadrosCalor = q;
+  const ws = wb.Sheets[nCalor];
+  const chave = Object.keys(ws).find(k => k[0] !== "!" && ws[k].f && /0[.,]7\s*\*/.test(ws[k].f));
+  const sent = CalorTabelas.verificarFormulaIBUTG(chave ? ws[chave].f : "");
+  const outras = t.abas.map(a => a.nome).filter(n => n !== nCalor && n !== nTab);
+  status("online", "Planilha de gestão carregada · calor");
+  $("statusArquivo").innerHTML = msg("ok", `${esc(nomeArq)}: abas “${esc(nCalor)}” e “${esc(nTab)}” lidas (${q.quadro1.length + q.quadro2.length} faixas de IBUTG, ${q.quadro3.length} atividades, ${q.quadro4.length} vestimentas).`)
+    + (outras.length ? `<p class="dica">Ainda sem calculadora: ${outras.map(esc).join(", ")}.</p>` : "");
+  $("calorOrigem").textContent = "Quadros lidos da planilha anexada. As fórmulas do IBUTG e a ponderação em 60 min vêm da norma e ficam no sistema.";
+  $("calorAvisos").innerHTML = sent.ok === true ? "" : msg("aviso", esc(sent.aviso));
+  $("cVest").innerHTML = q.quadro4.map(v => `<option value="${v.adicao}">${esc(v.roupa)} (+${f1(v.adicao)} °C)</option>`).join("");
+  $("cSolar").value = "nao"; $("calor").classList.add("sem-sol");
+  $("sits").innerHTML = ""; $("calorRes").innerHTML = ""; ultimoCalor = null;
+  addSituacao(); addSituacao();
+  $("calor").hidden = false;
+  return true;
+}
+
+function addSituacao() {
+  const n = document.querySelectorAll(".sit").length + 1;
+  if (n > MAX_SIT) return;
+  const opts = quadrosCalor.quadro3.map(a => `<option value="${a.w}">${esc([a.postura, a.subgrupo, a.atividade].filter(Boolean).join(" · "))} (${a.w} W)</option>`).join("");
+  const div = document.createElement("div");
+  div.className = "sit";
+  div.innerHTML = `<div class="sub">Situação térmica ${n}</div>
+    <div class="grade2">
+      <div><label>Exposição (min)</label><input class="s-exp" inputmode="decimal"></div>
+      <div><label>Taxa metabólica (W)</label><input class="s-w" inputmode="decimal"></div>
+    </div>
+    <label>Atividade (preenche a taxa metabólica)</label>
+    <select class="s-ativ"><option value="">Escolher…</option>${opts}</select>
+    <label>TG, globo (°C): 5 leituras separadas por ;</label><input class="s-tg" placeholder="23; 23,4; 23; 21; 22">
+    <label>TBN, úmido (°C)</label><input class="s-tbn">
+    <div class="tbs"><label>TBS, seco (°C)</label><input class="s-tbs"></div>`;
+  div.querySelector(".s-ativ").onchange = e => { div.querySelector(".s-w").value = e.target.value; };
+  $("sits").appendChild(div);
+  $("btnSit").hidden = n >= MAX_SIT;
+}
+function lerSituacoes() {
+  return [...document.querySelectorAll(".sit")].map(el => {
+    const lista = c => el.querySelector(c).value.split(/[;\s]+/).filter(Boolean).map(num);
+    const tg = lista(".s-tg"), tbn = lista(".s-tbn"), tbs = lista(".s-tbs");
+    const n = Math.max(tg.length, tbn.length, tbs.length);
+    return { exposicao: num(el.querySelector(".s-exp").value), taxaMetabolica: num(el.querySelector(".s-w").value),
+      leituras: Array.from({ length: n }, (_, k) => ({ tg: tg[k], tbn: tbn[k], tbs: tbs[k] })) };
+  });
+}
+let ultimoCalor = null;
+function calcularCalor() {
+  const r = Calor.calcularAvaliacao({ situacoes: lerSituacoes(), comSolar: $("cSolar").value === "sim", incremento: num($("cVest").value) }, quadrosCalor);
+  ultimoCalor = r;
+  return r;
+}
+function conclusaoCalor(r) {
+  if (!Number.isFinite(r.ibutgMedio) || !r.limite || !r.nivelAcao) return { cls: "aviso", txt: "Sem resultado: faltam dados ou a taxa metabólica está fora dos quadros. Veja os avisos abaixo." };
+  const prov = (r.medicoesValidas && r.tempoOk) ? "" : " <b>Resultado provisório: há avisos sobre as medições.</b>";
+  if (r.acimaDoLimite) return { cls: "erro", txt: `IBUTG médio ${f1(r.ibutgMedio)} °C <b>acima do limite de exposição</b> (${f1(r.limite.ibutg)} °C).${prov}` };
+  if (r.acimaDoNivelAcao) return { cls: "aviso", txt: `IBUTG médio ${f1(r.ibutgMedio)} °C <b>acima do nível de ação</b> (${f1(r.nivelAcao.ibutg)} °C), dentro do limite de ${f1(r.limite.ibutg)} °C.${prov}` };
+  return { cls: "ok", txt: `IBUTG médio ${f1(r.ibutgMedio)} °C <b>abaixo do nível de ação</b> (${f1(r.nivelAcao.ibutg)} °C).${prov}` };
+}
+function mostrarCalor() {
+  const r = calcularCalor();
+  const c = conclusaoCalor(r);
+  const lin = r.situacoes.map(x => `<tr><td>${x.n}</td><td>${fmt(x.exposicao)}</td><td>${Number.isFinite(x.taxaMetabolica) ? fmt(x.taxaMetabolica) : "—"}</td><td>${f2(x.tg.media)}</td><td>${f2(x.tbn.media)}</td><td>${$("cSolar").value === "sim" ? f2(x.tbs.media) : "—"}</td><td><b>${f2(x.ibutg)}</b></td></tr>`).join("");
+  $("calorRes").innerHTML =
+    (r.situacoes.length ? msg(c.cls, c.txt) : "") +
+    (r.situacoes.length ? `<table class="res-tab"><thead><tr><th>Sit.</th><th>Min</th><th>M (W)</th><th>TG</th><th>TBN</th><th>TBS</th><th>IBUTG</th></tr></thead><tbody>${lin}</tbody></table>
+      <div class="chaves">
+        <div class="fixo"><span>M médio</span><b>${f1(r.mMedio)} W</b></div>
+        <div class="fixo"><span>IBUTG médio (com vestimenta +${f1(r.incremento)})</span><b>${f2(r.ibutgMedio)} °C</b></div>
+        <div class="fixo"><span>Nível de ação (Quadro 1)</span><b>${r.nivelAcao ? f1(r.nivelAcao.ibutg) + " °C" : "—"}</b></div>
+        <div class="fixo"><span>Limite de exposição (Quadro 2)</span><b>${r.limite ? f1(r.limite.ibutg) + " °C" : "—"}</b></div>
+      </div>` : "") +
+    (r.problemas.length ? msg("aviso", "<b>Para conferir</b><br>" + r.problemas.map(esc).join("<br>")) : "") +
+    (r.situacoes.length ? '<button id="btnPdfCalor" type="button">Imprimir relatório de calor</button>' : "");
+  const b = $("btnPdfCalor"); if (b) b.onclick = () => { if (montarFichaCalor()) window.print(); };
+}
+$("btnSit").onclick = addSituacao;
+$("btnCalor").onclick = mostrarCalor;
+$("cSolar").onchange = () => { $("calor").classList.toggle("sem-sol", $("cSolar").value !== "sim"); };
+
+function montarFichaCalor() {
+  const r = calcularCalor();
+  if (!r.situacoes.length) { $("ficha").innerHTML = ""; return false; }
+  const c = conclusaoCalor(r), sol = $("cSolar").value === "sim";
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const vest = $("cVest").selectedOptions[0]?.textContent || "";
+  const lin = r.situacoes.map(x => `<tr><td>${x.n}</td><td>${fmt(x.exposicao)}</td><td>${Number.isFinite(x.taxaMetabolica) ? fmt(x.taxaMetabolica) : "—"}</td><td>${f2(x.tg.media)}</td><td>${f2(x.tbn.media)}</td><td>${sol ? f2(x.tbs.media) : "—"}</td><td><b>${f2(x.ibutg)}</b></td></tr>`).join("");
+  $("ficha").innerHTML = `
+    <h1>Relatório de calor · NHO 06</h1>
+    <div class="f-sub">IBUTG ${sol ? "com" : "sem"} carga solar: ${sol ? "0,7·TBN + 0,2·TG + 0,1·TBS" : "0,7·TBN + 0,3·TG"} · médias ponderadas em 60 min</div>
+    <div class="f-cab"><div>Data: ${hoje}</div><div>Empresa / setor:</div><div>Técnico:</div></div>
+    <table><thead><tr><th>Sit.</th><th>Exposição (min)</th><th>M (W)</th><th>TG (°C)</th><th>TBN (°C)</th><th>TBS (°C)</th><th>IBUTG (°C)</th></tr></thead><tbody>${lin}</tbody></table>
+    <h2>Resultado</h2>
+    <table><tbody>
+      <tr><th>M médio</th><td>${f1(r.mMedio)} W</td><th>Vestimenta</th><td>${esc(vest)}</td></tr>
+      <tr><th>IBUTG médio</th><td>${f2(r.ibutgMedio)} °C</td><th>Tempo total</th><td>${fmt(r.tempoTotal)} min</td></tr>
+      <tr><th>Nível de ação</th><td>${r.nivelAcao ? f1(r.nivelAcao.ibutg) + " °C" : "—"}</td><th>Limite de exposição</th><td>${r.limite ? f1(r.limite.ibutg) + " °C" : "—"}</td></tr>
+    </tbody></table>
+    <p style="margin-top:6px"><b>${c.txt}</b></p>
+    ${r.problemas.length ? `<h2>Para conferir</h2><div class="obs">${r.problemas.map(p => `<p>${esc(p)}</p>`).join("")}</div>` : ""}
+    <div class="rodape">Quadros 1 a 4 lidos da planilha de gestão da informação anexada. Conferir com a versão vigente. Gerado em ${hoje}.</div>`;
+  return true;
+}
+function montarFicha() { return $("calor").hidden ? montarFichaQuimica() : montarFichaCalor(); }
+
 // ---------- 4. Ficha de campo (1 página, todos os agentes) ----------
-function montarFicha() {
+function montarFichaQuimica() {
   const cards = [...document.querySelectorAll(".card")];
   if (!cards.length) { $("ficha").innerHTML = ""; return false; }
   const linhas = [], obs = [], grupos = new Map();
