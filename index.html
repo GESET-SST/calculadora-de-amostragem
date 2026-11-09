@@ -218,13 +218,45 @@ $("arquivo").onchange = async e => {
     $("statusArquivo").innerHTML = msg("erro", "Não consegui abrir esse arquivo. Se for PDF: ainda não é aceito, anexe a planilha (.xlsx).");
   }
 };
-$("btnExemplo").onclick = () => carregar([
+// ---------- Exemplo de teste: segue a planilha que está carregada ----------
+const AGENTES_EXEMPLO = [
   ["Número","Código do amostrador","Agente Químico","CAS","Tipo de amostrador","Vazão","Volume","Observações"],
   [1,"TC-01","2-Butoxietanol","111-76-2","Carvão ativado","0,01 - 0,05 L/min","2 L - 10 L","Exemplo: proteger da luz."],
   [2,"TC-02","Agente de teste A","000-00-0","Sílica","0,2 L/min","mínimo 480 L",""],
   [3,"TC-03","Agente de teste B","","Filtro","conforme método","Máx 10L","Faixa não reconhecida de propósito (teste do preenchimento manual)."],
   [4,"TC-04","Agente de teste C (ciclone)","","Ciclone","Ciclone de Nylon 1,7 L/min Ciclone de Alumínio 2,5 L/min","mínimo 240 L",""],
-], "exemplo de teste");
+];
+function exemploGuia() {
+  let lista = agentes.map((a, i) => ({ a, i })).filter(x => faixasConfiaveis(x.a)).slice(0, 3);
+  if (!lista.length) lista = agentes.map((a, i) => ({ a, i })).slice(0, 3);
+  marcados.clear(); lista.forEach(x => marcados.add(x.i));
+  desenharLista(); $("btnMontar").click();
+}
+function exemploCalor() {
+  const dados = [
+    { exp: "30", ativ: 1, tg: "30; 30,1; 30; 30,2; 30", tbn: "20; 20; 20,1; 20; 20" },
+    { exp: "30", ativ: 5, tg: "36; 36; 36,1; 36; 36,2", tbn: "27; 27; 27; 27,1; 27" },
+  ];
+  $("cSolar").value = "nao"; $("calor").classList.add("sem-sol");
+  const sits = document.querySelectorAll(".sit");
+  dados.forEach((d, k) => {
+    const el = sits[k]; if (!el) return;
+    const sel = el.querySelector(".s-ativ");
+    sel.selectedIndex = Math.min(d.ativ, sel.options.length - 1);
+    el.querySelector(".s-w").value = sel.value;
+    el.querySelector(".s-exp").value = d.exp;
+    el.querySelector(".s-tg").value = d.tg;
+    el.querySelector(".s-tbn").value = d.tbn;
+    el.querySelector(".s-tbs").value = "";
+  });
+  mostrarCalor();
+  $("calorRes").insertAdjacentHTML("afterbegin", msg("aviso", "<b>Exemplo com dados fictícios.</b> Troque pelos valores da medição real."));
+}
+$("btnExemplo").onclick = () => {
+  if (!$("calor").hidden) return exemploCalor();                           // planilha de calor carregada
+  if (!agentes.length) carregar(AGENTES_EXEMPLO, "exemplo de teste");       // nada carregado: agentes fictícios
+  exemploGuia();                                                            // Guia (real ou fictício): marca e calcula
+};
 
 // ---------- 2. Lista ----------
 const marcados = new Set();
